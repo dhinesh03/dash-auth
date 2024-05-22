@@ -21,5 +21,6 @@ __all__ = [
     "public_callback",
     "BasicAuth",
     "OIDCAuth",
+    "CognitoOAuth",
     "__version__",
 ]
