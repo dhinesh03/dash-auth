@@ -1,5 +1,6 @@
 from .public_routes import add_public_routes, public_callback
 from .basic_auth import BasicAuth
+from .cognito_oauth import CognitoOAuth
 from .group_protection import (
     list_groups, check_groups, protected, protected_callback
 )
