@@ -5,3 +5,4 @@ flask
 werkzeug
 pytest
 authlib
+git+https://github.com/dhinesh03/flask-dance.git

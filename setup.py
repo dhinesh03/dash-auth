@@ -24,6 +24,7 @@ setup(
     ],
     extras_require={
         "oidc": ["authlib"],
+        "cognito": ["flask-dance @ git+https://github.com/dhinesh03/flask-dance.git"],
     },
     python_requires=">=3.8",
     include_package_data=True,

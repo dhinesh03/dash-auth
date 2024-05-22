@@ -6,6 +6,9 @@ from dash._callback import GLOBAL_CALLBACK_MAP
 from dash import get_app
 from werkzeug.routing import Map, MapAdapter, Rule
 
+import logging
+
+logger = logging.getLogger()
 
 DASH_PUBLIC_ASSETS_EXTENSIONS = "js,css"
 BASE_PUBLIC_ROUTES = [
@@ -25,7 +28,7 @@ PUBLIC_ROUTES = "PUBLIC_ROUTES"
 PUBLIC_CALLBACKS = "PUBLIC_CALLBACKS"
 
 
-def add_public_routes(app: Dash, routes: list):
+def add_public_routes(app: Dash, routes: list, ignore_prefix=False):
     """Add routes to the public routes list.
 
     The routes passed should follow the Flask route syntax.
@@ -46,14 +49,18 @@ def add_public_routes(app: Dash, routes: list):
     :param app: Dash app
     :param routes: list of public routes to be added
     """
-
+    dash_base_path = app.get_relative_path("")
     public_routes = get_public_routes(app)
 
     if not public_routes.map._rules:
         routes = BASE_PUBLIC_ROUTES + routes
 
     for route in routes:
-        public_routes.map.add(Rule(route))
+        # logger.info(f"Adding public route: {dash_base_path.rstrip('/')}{route}")
+        if not ignore_prefix:
+            public_routes.map.add(Rule(f"{dash_base_path.rstrip('/')}{route}"))
+        else:
+            public_routes.map.add(Rule(route))
 
     app.server.config[PUBLIC_ROUTES] = public_routes
 

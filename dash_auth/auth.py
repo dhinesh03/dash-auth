@@ -54,7 +54,8 @@ class Auth(ABC):
             # * Check whether the callback is marked as public
             # * Check whether the callback is performed on route change in
             #   which case the path should be checked against the public routes
-            if request.path == "/_dash-update-component":
+            dash_base_path = self.app.get_relative_path("")
+            if request.path == f"{dash_base_path}_dash-update-component":
                 body = request.get_json()
 
                 # Check whether the callback is marked as public
