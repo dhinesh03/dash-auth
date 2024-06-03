@@ -94,12 +94,12 @@ class CognitoOAuth(Auth):
         redirect_uri = url_for("cognito.authorized", _external=True).split("/")
         redirect_uri.pop(-4)
         redirect_uri = "/".join(redirect_uri)
-        logger.info(f"Redirect URI: {redirect_uri}")
+        # logger.info(f"Redirect URI: {redirect_uri}")
         return redirect_uri
 
     def is_authorized(self):
         try:
-            logger.info(f"is_authorized Request path: {request.path}")
+            # logger.info(f"is_authorized Request path: {request.path}")
             # logger.info(f"Checking if authorized: {cognito.authorized}")
 
             map_adapter = Map(
@@ -118,7 +118,7 @@ class CognitoOAuth(Auth):
             if not cognito.authorized or cognito.token.get("expires_in") < 0:
                 # send to cognito login
                 return False
-            logger.info(f"Token expires in: {cognito.token.get('expires_in')}")
+            # logger.info(f"Token expires in: {cognito.token.get('expires_in')}")
             # resp = cognito.get("/oauth2/userInfo")
             # assert resp.ok, resp.text
 
@@ -145,7 +145,7 @@ class CognitoOAuth(Auth):
         # logger.info(f"Token: {token.get('access_token')}")
         resp = blueprint.session.get("/oauth2/userInfo")
         assert resp.ok, resp.text
-        logger.info(f"User info: {resp.json()}")
+        # logger.info(f"User info: {resp.json()}")
         # for (
         #     user_info_attr,
         #     session_attr,
