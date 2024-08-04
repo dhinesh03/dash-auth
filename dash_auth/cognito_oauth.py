@@ -25,9 +25,9 @@ class CognitoOAuth(Auth):
         region=None,
         additional_scopes=None,
         public_routes: Optional[list] = None,
-        dash_app_permissions: Optional[list] = None,
+        whitelisted_emails: Optional[list] = None,
     ):
-        self.dash_app_permissions = dash_app_permissions
+        self.whitelisted_emails = whitelisted_emails
         add_public_routes(app, ['/restricted'])
 
         dash_base_path = app.get_relative_path("")
@@ -77,8 +77,8 @@ class CognitoOAuth(Auth):
                 # send to cognito login
                 return False
 
-            if len(self.dash_app_permissions) > 0:
-                if session.get("email").lower() not in self.dash_app_permissions:
+            if len(self.whitelisted_emails) > 0:
+                if session.get("email").lower() not in self.whitelisted_emails:
                     return redirect(url_for("handle_restricted"))
 
             return True
