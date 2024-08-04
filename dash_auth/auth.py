@@ -1,22 +1,15 @@
 from __future__ import absolute_import
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Union
 
 from dash import Dash
-from flask import request
+from flask import Response, request
 
-from .public_routes import (
-    add_public_routes, get_public_callbacks, get_public_routes
-)
+from .public_routes import add_public_routes, get_public_callbacks, get_public_routes
 
 
 class Auth(ABC):
-    def __init__(
-        self,
-        app: Dash,
-        public_routes: Optional[list] = None,
-        **obsolete
-    ):
+    def __init__(self, app: Dash, public_routes: Optional[list] = None, **obsolete):
         """Auth base class for authentication in Dash.
 
         :param app: Dash app
@@ -26,9 +19,7 @@ class Auth(ABC):
 
         # Deprecated arguments
         if obsolete:
-            raise TypeError(
-                f"Auth got unexpected keyword arguments: {list(obsolete)}"
-            )
+            raise TypeError(f"Auth got unexpected keyword arguments: {list(obsolete)}")
 
         self.app = app
         self._protect()
@@ -66,11 +57,7 @@ class Auth(ABC):
                 # such a callback will be a routing callback and the pathname
                 # should be checked against the public routes
                 pathname = next(
-                    (
-                        inp.get("value") for inp in body["inputs"]
-                        if isinstance(inp, dict)
-                        and inp.get("property") == "pathname"
-                    ),
+                    (inp.get("value") for inp in body["inputs"] if isinstance(inp, dict) and inp.get("property") == "pathname"),
                     None,
                 )
                 if pathname and public_routes.test(pathname):
@@ -78,14 +65,20 @@ class Auth(ABC):
 
             # If the route is not a callback route, check whether the path
             # matches a public route, or whether the request is authorised
-            if public_routes.test(request.path) or self.is_authorized():
+            if public_routes.test(request.path):
                 return None
+
+            authorized = self.is_authorized()
+            if authorized is True:
+                return None
+            elif isinstance(authorized, Response):
+                return authorized
 
             # Otherwise, ask the user to log in
             return self.login_request()
 
     @abstractmethod
-    def is_authorized(self):
+    def is_authorized(self) -> Union[bool, Response]:
         pass
 
     @abstractmethod

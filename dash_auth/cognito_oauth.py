@@ -1,20 +1,12 @@
 import os
-from urllib.parse import quote
 from typing import Optional
-
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError, TokenExpiredError
 from dash import Dash
-from flask import (
-    redirect,
-    request,
-    url_for,
-    session,
-    make_response,
-)
+from flask import redirect, request, url_for, session
 from flask_dance.contrib.cognito import make_cognito_blueprint, cognito
 from flask_dance.consumer import oauth_authorized
 from werkzeug.routing import Map, Rule
-
+from .public_routes import add_public_routes
 from .auth import Auth
 import logging
 
@@ -32,10 +24,11 @@ class CognitoOAuth(Auth):
         domain: str,
         region=None,
         additional_scopes=None,
-        logout_url: str = None,
         public_routes: Optional[list] = None,
-        # user_info_to_session_attr_mapping: dict[str, str] = None,
+        dash_app_permissions: Optional[list] = None,
     ):
+        self.dash_app_permissions = dash_app_permissions
+        add_public_routes(app, ['/restricted'])
 
         dash_base_path = app.get_relative_path("")
 
@@ -50,58 +43,23 @@ class CognitoOAuth(Auth):
             ]
             + (additional_scopes if additional_scopes else []),
             state=dash_base_path.strip("/"),
-            redirect_uri_func=(
-                self.redirect_uri_func if not os.environ.get("IS_LOCAL") else None
-            ),
+            redirect_uri_func=(self.redirect_uri_func if not os.environ.get("IS_LOCAL") else None),
         )
         app.server.register_blueprint(cognito_bp, url_prefix=f"{dash_base_path}/login")
         super().__init__(app, public_routes=public_routes)
-        # self.user_info_to_session_attr_mapping = (
-        #     {"email": "email"}
-        #     if user_info_to_session_attr_mapping is None
-        #     else user_info_to_session_attr_mapping
-        # )
 
-        # if logout_url is not None:
-        #     logout_url = (
-        #         dash_base_path.removesuffix("/") + "/" + logout_url.removeprefix("/")
-        #     )
-
-        #     cognito_hostname = (
-        #         f"{domain}.auth.{region}.amazoncognito.com"
-        #         if region is not None
-        #         else domain
-        #     )
-
-        #     @app.server.route(logout_url)
-        #     def handle_logout():
-        #         session.clear()
-        #         post_logout_redirect = (
-        #             request.host_url.removesuffix("/") + dash_base_path
-        #         )
-        #         cognito_logout_url = (
-        #             f"https://{cognito_hostname}/logout?"
-        #             + f"client_id={cognito_bp.client_id}&logout_uri={quote(post_logout_redirect)}"
-        #         )
-
-        #         response = make_response(redirect(cognito_logout_url))
-
-        #         # Invalidate the session cookie
-        #         response.set_cookie("session", "empty", max_age=-3600)
-        #         return response
+        @app.server.route(f"/{dash_base_path}/restricted", methods=["GET"])
+        def handle_restricted():
+            return "You don't have access to this application, please contact the administrator"
 
     def redirect_uri_func(self):
         redirect_uri = url_for("cognito.authorized", _external=True).split("/")
         redirect_uri.pop(-4)
         redirect_uri = "/".join(redirect_uri)
-        # logger.info(f"Redirect URI: {redirect_uri}")
         return redirect_uri
 
     def is_authorized(self):
         try:
-            # logger.info(f"is_authorized Request path: {request.path}")
-            # logger.info(f"Checking if authorized: {cognito.authorized}")
-
             map_adapter = Map(
                 [
                     Rule(x)
@@ -111,25 +69,18 @@ class CognitoOAuth(Auth):
                     ]
                 ]
             ).bind("")
-            # logger.info(f"Map adapter: {Rule(url_for("cognito.login"))}")
+
             if map_adapter.test(request.path):
                 return True
 
             if not cognito.authorized or cognito.token.get("expires_in") < 0:
                 # send to cognito login
                 return False
-            # logger.info(f"Token expires in: {cognito.token.get('expires_in')}")
-            # resp = cognito.get("/oauth2/userInfo")
-            # assert resp.ok, resp.text
 
-            # for (
-            #     user_info_attr,
-            #     session_attr,
-            # ) in self.user_info_to_session_attr_mapping.items():
-            #     session[session_attr] = resp.json()[user_info_attr]
-            #     logger.info(
-            #         f"Added {user_info_attr} as {session[session_attr]} to session"
-            #     )
+            if len(self.dash_app_permissions) > 0:
+                if session.get("email").lower() not in self.dash_app_permissions:
+                    return redirect(url_for("handle_restricted"))
+
             return True
         except (InvalidGrantError, TokenExpiredError):
             return self.login_request()
@@ -145,13 +96,8 @@ class CognitoOAuth(Auth):
         # logger.info(f"Token: {token.get('access_token')}")
         resp = blueprint.session.get("/oauth2/userInfo")
         assert resp.ok, resp.text
-        # logger.info(f"User info: {resp.json()}")
-        # for (
-        #     user_info_attr,
-        #     session_attr,
-        # ) in blueprint.user_info_to_session_attr_mapping.items():
-        #     session[session_attr] = resp.json()[user_info_attr]
-        #     logger.info(
-        #         f"Added {user_info_attr} as {session[session_attr]} to session"
-        # )
+        user_info = resp.json()
+        session["email"] = user_info["email"]
+        session["name"] = user_info["name"]
+        session["username"] = user_info["username"]
         return None

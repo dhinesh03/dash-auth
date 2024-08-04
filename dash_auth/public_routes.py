@@ -53,10 +53,10 @@ def add_public_routes(app: Dash, routes: list, ignore_prefix=False):
     public_routes = get_public_routes(app)
 
     if not public_routes.map._rules:
-        routes = BASE_PUBLIC_ROUTES + routes
+        for route in BASE_PUBLIC_ROUTES:
+            public_routes.map.add(Rule(f"{dash_base_path.rstrip('/')}{route}"))
 
     for route in routes:
-        # logger.info(f"Adding public route: {dash_base_path.rstrip('/')}{route}")
         if not ignore_prefix:
             public_routes.map.add(Rule(f"{dash_base_path.rstrip('/')}{route}"))
         else:
@@ -78,22 +78,14 @@ def public_callback(*callback_args, **callback_kwargs):
 
         wrapped_func = callback(*callback_args, **callback_kwargs)(func)
         callback_id = next(
-            (
-                k for k, v in GLOBAL_CALLBACK_MAP.items()
-                if inspect.getsource(v["callback"]) == inspect.getsource(func)
-            ),
+            (k for k, v in GLOBAL_CALLBACK_MAP.items() if inspect.getsource(v["callback"]) == inspect.getsource(func)),
             None,
         )
         try:
             app = get_app()
-            app.server.config[PUBLIC_CALLBACKS] = (
-                get_public_callbacks(app) + [callback_id]
-            )
+            app.server.config[PUBLIC_CALLBACKS] = get_public_callbacks(app) + [callback_id]
         except Exception:
-            print(
-                "Could not set up the public callback as the Dash object "
-                "has not yet been instantiated."
-            )
+            print("Could not set up the public callback as the Dash object " "has not yet been instantiated.")
 
         def wrap(*args, **kwargs):
             return wrapped_func(*args, **kwargs)
